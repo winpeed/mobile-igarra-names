@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,64 +7,124 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  FlatList,
   Modal,
-  Alert,
   StatusBar,
   TouchableHighlight,
   Pressable,
   TextInput,
 } from "react-native";
 import { FontAwesome5 } from "@expo/vector-icons";
-import { AntDesign } from "@expo/vector-icons";
 import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import { useNavigation } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
 
 function Name() {
   const screen = Dimensions.get("window");
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [playbackObject, setPlaybackObject] = useState(null);
+  const [playbackStatus, setPlaybackStatus] = useState(null);
+
+  const navigation = useNavigation();
+  const route = useRoute();
+
+  const { meaning, modified, name, sound } = route.params.item[0].fields;
+
+  let url;
+
+  if (sound) {
+    url = sound[0].url;
+  }
+
+  async function playSound() {
+    if (playbackObject !== null && playbackStatus === null) {
+      try {
+        const status = await playbackObject.loadAsync(
+          {
+            uri: url,
+          },
+          { shouldPlay: true }
+        );
+        return setPlaybackStatus(status);
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
+    if (playbackStatus.isPlaying) {
+      const status = await playbackObject.stopAsync();
+      return setPlaybackStatus(status);
+    }
+
+    if (!playbackStatus.isPlaying) {
+      const status = await playbackObject.replayAsync();
+      return setPlaybackStatus(status);
+    }
+  }
+
+  useEffect(() => {
+    if (playbackObject === null) {
+      setPlaybackObject(new Audio.Sound());
+    }
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="black" />
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={() => {
-          setIsModalVisible(!isModalVisible);
-        }}
-      >
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalHeading}>Help us improve Ametu</Text>
-            <Text style={styles.modalText}>
-              Do you have a story to share about this name? Do you think we
-              missed something? Kindly share with us make improvements.
-            </Text>
-            <TextInput style={styles.formInput} multiline={true} />
+      <ScrollView>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isModalVisible}
+          onRequestClose={() => {
+            setIsModalVisible(!isModalVisible);
+          }}
+        >
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Text style={styles.modalHeading}>Help us improve '{name}'</Text>
+              <Text style={styles.modalText}>
+                Do you have a story to share about this name? Do you think we
+                missed something? Kindly share with us make improvements.
+              </Text>
+              <TextInput
+                style={styles.formInput}
+                multiline={true}
+                value={feedback}
+                onChangeText={(text) => setFeedback(text)}
+              />
 
-            <View style={styles.buttonWrapper}>
-              <Pressable style={[styles.button, styles.buttonOpen]}>
-                <Text style={[styles.textSubmit]}>Submit</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setIsModalVisible(!isModalVisible)}
-                style={[styles.button, styles.buttonClose]}
-              >
-                <Text style={[styles.textClose]}>Cancel</Text>
-              </Pressable>
+              <View style={styles.buttonWrapper}>
+                <Pressable style={[styles.button, styles.buttonOpen]}>
+                  <Text style={[styles.textSubmit]}>Submit</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setIsModalVisible(!isModalVisible)}
+                  style={[styles.button, styles.buttonClose]}
+                >
+                  <Text style={[styles.textClose]}>Cancel</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-      <ScrollView>
-        <Text style={styles.subheading}>Meaning of Ametu</Text>
-        <Text style={styles.body}>Past deeds</Text>
+        </Modal>
 
-        <Text style={styles.subheading}>Pronounciation</Text>
-        <TouchableOpacity>
-          <Ionicons name="play-circle-outline" size={90} color="black" />
-        </TouchableOpacity>
-        <TouchableOpacity></TouchableOpacity>
+        <Text style={styles.subheading}>Meaning of {name}</Text>
+        <Text style={styles.body}>
+          {meaning.slice(0, 1).toUpperCase()}
+          {meaning.slice(1)}
+        </Text>
+
+        {url ? (
+          <View>
+            <Text style={styles.subheading}>Pronounciation</Text>
+            <TouchableOpacity onPress={playSound}>
+              <Ionicons name="play-circle-outline" size={80} color="black" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <Text style={styles.subheading}>Share</Text>
         <View style={[styles.icons, { width: screen.width * 0.7 }]}>
           <TouchableOpacity>
@@ -77,7 +137,9 @@ function Name() {
             <FontAwesome5 name="whatsapp-square" size={55} color="black" />
           </TouchableOpacity>
         </View>
-        <Text style={styles.updated}>Last Updated on 23/11/2022</Text>
+        <Text style={styles.updated}>
+          Last Updated on {new Date(modified).toLocaleDateString()}
+        </Text>
         <TouchableHighlight
           onPress={() => setIsModalVisible(!isModalVisible)}
           style={{ width: screen.width * 0.5 }}
@@ -97,13 +159,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
-    paddingTop: 30,
+    paddingTop: 10,
     paddingLeft: 20,
   },
   subheading: {
     fontWeight: "700",
-    fontSize: 25,
-    paddingTop: 40,
+    fontSize: 22,
+    letterSpacing: 0.1,
+    paddingTop: 30,
     paddingBottom: 20,
   },
   body: {
@@ -141,7 +204,8 @@ const styles = StyleSheet.create({
     marginTop: 50,
   },
   modalView: {
-    margin: 15,
+    marginTop: 55,
+    marginHorizontal: 13,
     backgroundColor: "white",
     borderRadius: 20,
     padding: 35,

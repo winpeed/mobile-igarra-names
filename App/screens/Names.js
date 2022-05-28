@@ -5,16 +5,21 @@ import {
   View,
   SafeAreaView,
   TouchableOpacity,
-  ScrollView,
   Dimensions,
   FlatList,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
 
 function Names() {
   const [names, setNames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const screen = Dimensions.get("window");
+
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { letter } = route.params;
 
   const fetchData = async () => {
     const response = await fetch(
@@ -23,7 +28,7 @@ function Names() {
     const data = await response.json();
     setNames(
       data.data.filter((item) =>
-        item.fields.engName.toLowerCase().startsWith("a")
+        item.fields.engName.toLowerCase().startsWith(letter.toLowerCase())
       )
     );
     setIsLoading(false);
@@ -34,19 +39,37 @@ function Names() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Names starting with a</Text>
       {isLoading ? (
-        <Text>Loading....</Text>
-      ) : (
+        <ActivityIndicator
+          size="large"
+          color="#000000"
+          style={{ paddingTop: 30 }}
+        />
+      ) : names.length !== 0 ? (
         <FlatList
           data={names}
           renderItem={({ item }) => (
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("Name", {
+                  name: item.fields.name,
+                  item: names.filter(
+                    (elem) => elem.fields.name === item.fields.name
+                  ),
+                })
+              }
+            >
               <Text style={styles.text}>{item.fields.name}</Text>
             </TouchableOpacity>
           )}
           keyExtractor={(item) => item.id}
         />
+      ) : (
+        <View>
+          <Text style={styles.emptyText}>
+            There are currently no names starting with '{letter}'
+          </Text>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -64,13 +87,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
   },
-  title: {
-    textAlign: "center",
-    fontSize: 26,
-    fontWeight: "600",
-    paddingTop: 50,
-    paddingBottom: 20,
-  },
   text: {
     fontSize: 22,
     paddingVertical: 25,
@@ -80,5 +96,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     fontWeight: "400",
     backgroundColor: "#f5f6fa",
+  },
+  emptyText: {
+    fontSize: 22,
+    paddingVertical: 95,
+    paddingHorizontal: 20,
+    fontWeight: "400",
+    textAlign: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
